@@ -1,0 +1,16 @@
+﻿{
+  "name": "auction-dapp",
+  "version": "1.0.0",
+  "description": "Application decentralisee de gestion des encheres (Sujet 5)",
+  "scripts": {
+    "compile": "truffle compile"
+  },
+  "devDependencies": {
+    "ganache": "^7.9.2",
+    "solc": "^0.8.20",
+    "truffle": "^5.11.5"
+  },
+  "dependencies": {
+    "@openzeppelin/contracts": "^5.6.1"
+  }
+}
