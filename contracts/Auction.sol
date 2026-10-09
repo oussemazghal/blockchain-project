@@ -1,16 +1,18 @@
 ﻿// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
+/// @title Gestion d'encheres sur la blockchain
+/// @notice Un vendeur met un article en vente avec une enchere minimale et une duree fixe.
 contract Auction {
     struct AuctionItem {
-        address seller;
-        string itemName;
-        string description;
-        uint256 minPrice;
-        uint256 endTime;
-        address highestBidder;
-        uint256 highestBid;
-        bool ended;
+        address seller;          // vendeur
+        string itemName;         // nom de l'article
+        string description;      // description courte
+        uint256 minPrice;        // enchere minimale (en wei)
+        uint256 endTime;         // date de fin (timestamp)
+        address highestBidder;   // meilleur encherisseur
+        uint256 highestBid;      // meilleure offre (en wei)
+        bool ended;              // enchere cloturee ?
     }
 
     uint256 public auctionCount;
@@ -24,6 +26,7 @@ contract Auction {
         uint256 endTime
     );
 
+    /// @notice Cree une enchere pour un article
     function createAuction(
         string calldata itemName,
         string calldata description,
