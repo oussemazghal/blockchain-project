@@ -19,6 +19,8 @@ contract Auction {
 
     event AuctionCreated(uint256 indexed auctionId, address indexed seller, string itemName, uint256 minPrice, uint256 endTime);
     event BidPlaced(uint256 indexed auctionId, address indexed bidder, uint256 amount);
+    event AuctionEnded(uint256 indexed auctionId, address winner, uint256 amount);
+    event Withdrawal(address indexed bidder, uint256 amount);
 
     modifier auctionExists(uint256 auctionId) {
         require(auctionId < auctionCount, "Enchere inexistante");
@@ -65,5 +67,37 @@ contract Auction {
         a.highestBid = msg.value;
 
         emit BidPlaced(auctionId, msg.sender, msg.value);
+    }
+
+    function withdraw() external {
+        uint256 amount = pendingReturns[msg.sender];
+        require(amount > 0, "Aucun fonds a retirer");
+
+        pendingReturns[msg.sender] = 0;
+
+        (bool ok, ) = payable(msg.sender).call{value: amount}("");
+        require(ok, "Echec du transfert");
+
+        emit Withdrawal(msg.sender, amount);
+    }
+
+    function endAuction(uint256 auctionId) external auctionExists(auctionId) {
+        AuctionItem storage a = auctions[auctionId];
+
+        require(block.timestamp >= a.endTime, "Enchere encore en cours");
+        require(!a.ended, "Enchere deja cloturee");
+
+        a.ended = true;
+
+        if (a.highestBidder != address(0)) {
+            (bool ok, ) = payable(a.seller).call{value: a.highestBid}("");
+            require(ok, "Echec du virement vendeur");
+        }
+
+        emit AuctionEnded(auctionId, a.highestBidder, a.highestBid);
+    }
+
+    function getAuction(uint256 auctionId) external view auctionExists(auctionId) returns (AuctionItem memory) {
+        return auctions[auctionId];
     }
 }
