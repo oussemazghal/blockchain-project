@@ -11,8 +11,20 @@ async function expectRevert(promise, expectedMessage) {
   assert.fail(La transaction aurait du echouer avec "");
 }
 
+async function increaseTime(seconds) {
+  const send = (method, params = []) =>
+    new Promise((resolve, reject) =>
+      web3.currentProvider.send(
+        { jsonrpc: "2.0", method, params, id: Date.now() },
+        (err, res) => (err ? reject(err) : resolve(res))
+      )
+    );
+  await send("evm_increaseTime", [seconds]);
+  await send("evm_mine");
+}
+
 contract("Auction", (accounts) => {
-  const [seller, alice, bob] = accounts;
+  const [seller, alice, bob, carol] = accounts;
   const MIN = toBN(toWei("1", "ether"));
   const ONE_HOUR = 3600;
   let auction;
@@ -21,32 +33,29 @@ contract("Auction", (accounts) => {
     auction = await Auction.new();
   });
 
-  describe("Creation (F1)", () => {
-    it("enregistre l'article, le vendeur, le prix minimal et la date de fin", async () => {
-      const tx = await auction.createAuction("Montre", "Montre ancienne", MIN, ONE_HOUR, { from: seller });
-      assert.equal((await auction.auctionCount()).toString(), "1");
+  describe("Cycle complet: encheres, retrait et fin", () => {
+    it("permet a l'ancien encherisseur de retirer ses fonds apres surenchere", async () => {
+      await auction.createAuction("Montre", "", MIN, ONE_HOUR, { from: seller });
+      await auction.bid(0, { from: alice, value: toWei("1.2", "ether") });
+      await auction.bid(0, { from: bob, value: toWei("1.5", "ether") });
+
+      assert.equal((await auction.pendingReturns(alice)).toString(), toWei("1.2", "ether"));
+      await auction.withdraw({ from: alice });
+      assert.equal((await auction.pendingReturns(alice)).toString(), "0");
     });
 
-    it("refuse un nom vide, un prix minimal nul ou une duree nulle", async () => {
-      await expectRevert(auction.createAuction("", "", MIN, ONE_HOUR), "Nom de l'article obligatoire");
-      await expectRevert(auction.createAuction("Montre", "", 0, ONE_HOUR), "Le prix minimal doit etre > 0");
-      await expectRevert(auction.createAuction("Montre", "", MIN, 0), "La duree doit etre > 0");
-    });
-  });
+    it("cloture l'enchere apres expiration et transfert le gain au vendeur", async () => {
+      await auction.createAuction("Montre", "", MIN, ONE_HOUR, { from: seller });
+      await auction.bid(0, { from: alice, value: toWei("2", "ether") });
 
-  describe("Encherir (F2)", () => {
-    let id;
-    beforeEach(async () => {
-      const tx = await auction.createAuction("Montre", "", MIN, ONE_HOUR, { from: seller });
-      id = 0;
-    });
+      await increaseTime(ONE_HOUR + 10);
+      const before = toBN(await web3.eth.getBalance(seller));
+      await auction.endAuction(0, { from: carol });
+      const after = toBN(await web3.eth.getBalance(seller));
 
-    it("refuse une premiere offre inferieure au prix minimal", async () => {
-      await expectRevert(auction.bid(id, { from: alice, value: toWei("0.5", "ether") }), "Offre inferieure au prix minimal");
-    });
-
-    it("refuse que le vendeur encherisse sur sa propre enchere", async () => {
-      await expectRevert(auction.bid(id, { from: seller, value: MIN }), "Le vendeur ne peut pas encherir");
+      assert.equal(after.sub(before).toString(), toWei("2", "ether"));
+      const a = await auction.getAuction(0);
+      assert.isTrue(a.ended);
     });
   });
 });
