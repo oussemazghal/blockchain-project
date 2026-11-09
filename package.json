@@ -1,10 +1,27 @@
-﻿{
+{
   "name": "auction-dapp",
   "version": "1.0.0",
-  "description": "Application decentralisee de gestion des encheres (Sujet 5)",
+  "description": "Application décentralisée de gestion des enchères (Sujet 5) - Solidity, Truffle, Ganache, MetaMask, React",
   "scripts": {
-    "compile": "truffle compile"
+    "ganache": "ganache --port 7545 --chain.chainId 1337 --wallet.deterministic --wallet.defaultBalance 1000",
+    "compile": "truffle compile",
+    "test": "truffle test --network test",
+    "test:ganache": "truffle test --network development",
+    "migrate": "truffle migrate --network development --reset",
+    "frontend": "npm --prefix frontend run dev",
+    "setup": "npm install && npm --prefix frontend install"
   },
+  "keywords": [
+    "blockchain",
+    "ethereum",
+    "solidity",
+    "truffle",
+    "ganache",
+    "metamask",
+    "react"
+  ],
+  "author": "",
+  "license": "ISC",
   "devDependencies": {
     "ganache": "^7.9.2",
     "solc": "^0.8.20",
