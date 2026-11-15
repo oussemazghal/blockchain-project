@@ -1,67 +1,41 @@
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useMemo, useSyncExternalStore } from "react";
 import { CHAIN_ID } from "../config.js";
-import { getBrowserProvider, hasMetaMask, readProvider, switchToGanache } from "../lib/blockchain.js";
+import { readProvider, switchToGanache } from "../lib/blockchain.js";
+import { createWalletSession } from "../lib/walletSession.js";
 
-// Gère la connexion à MetaMask : compte, réseau et solde.
 export function useWallet() {
-  const [account, setAccount] = useState(null);
-  const [chainId, setChainId] = useState(null);
-  const [balance, setBalance] = useState(null);
-  const [connecting, setConnecting] = useState(false);
-
-  const refreshBalance = useCallback(async (addr = account) => {
-    if (!addr) return setBalance(null);
+  const provider = typeof window !== "undefined" ? window.ethereum : undefined;
+  const session = useMemo(() => {
+    let storage;
     try {
-      setBalance(await readProvider.getBalance(addr));
+      storage = typeof window !== "undefined" ? window.localStorage : undefined;
     } catch {
-      setBalance(null);
+      /* Private browser storage may be unavailable. */
     }
-  }, [account]);
-
-  // Reprise silencieuse si le site est déjà autorisé dans MetaMask
-  useEffect(() => {
-    if (!hasMetaMask()) return;
-    window.ethereum.request({ method: "eth_accounts" }).then((accs) => {
-      if (accs.length) setAccount(accs[0]);
+    return createWalletSession({
+      provider,
+      storage,
+      readBalance: (address) => readProvider.getBalance(address),
     });
-    window.ethereum.request({ method: "eth_chainId" }).then((id) => setChainId(parseInt(id, 16)));
-
-    const onAccounts = (accs) => setAccount(accs[0] || null);
-    const onChain = (id) => setChainId(parseInt(id, 16));
-    window.ethereum.on("accountsChanged", onAccounts);
-    window.ethereum.on("chainChanged", onChain);
-    return () => {
-      window.ethereum.removeListener("accountsChanged", onAccounts);
-      window.ethereum.removeListener("chainChanged", onChain);
-    };
-  }, []);
-
-  useEffect(() => {
-    refreshBalance(account);
-  }, [account, refreshBalance]);
-
-  const connect = useCallback(async () => {
-    if (!hasMetaMask()) return;
-    setConnecting(true);
-    try {
-      const accs = await getBrowserProvider().send("eth_requestAccounts", []);
-      setAccount(accs[0] || null);
-      const id = await window.ethereum.request({ method: "eth_chainId" });
-      setChainId(parseInt(id, 16));
-    } finally {
-      setConnecting(false);
-    }
-  }, []);
+  }, [provider]);
+  const state = useSyncExternalStore(
+    session.subscribe,
+    session.getSnapshot,
+    session.getSnapshot,
+  );
+  useEffect(() => session.start(), [session]);
 
   return {
-    account,
-    chainId,
-    balance,
-    connecting,
-    connect,
+    ...state,
+    connect: session.connect,
+    disconnect: session.disconnect,
+    switchAccount: session.switchAccount,
+    refreshBalance: session.refreshBalance,
     switchNetwork: switchToGanache,
-    refreshBalance,
-    wrongNetwork: Boolean(account) && chainId !== null && chainId !== CHAIN_ID,
-    metaMaskInstalled: hasMetaMask(),
+    wrongNetwork:
+      Boolean(state.account) &&
+      state.chainId !== null &&
+      state.chainId !== CHAIN_ID,
+    metaMaskInstalled: Boolean(provider),
   };
 }

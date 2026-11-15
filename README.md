@@ -246,6 +246,16 @@ le profil du vendeur, le suivi des offres et le retrait des fonds.
 
 > ⚠️ **Sécurité :** Ces clés privées sont publiques et réservées exclusivement au développement local. Ne transférez jamais de vrais fonds vers ces adresses.
 
+### 5. Changer de compte et se déconnecter
+
+Cliquez sur votre adresse en haut à droite pour ouvrir le portefeuille :
+- **Changer de compte** ouvre le choix des comptes dans MetaMask. Sélectionnez le vendeur ou un enchérisseur pour poursuivre le scénario avec ce rôle.
+- **Se déconnecter** remet l'application en mode visiteur. Elle reste déconnectée après un rechargement de la page. Cliquez sur **Connecter le portefeuille**, puis **Connecter MetaMask** pour choisir à nouveau un compte.
+
+Le solde, les offres et les contrôles du vendeur suivent le compte sélectionné.
+Attendez la confirmation d'une transaction avant de changer de rôle. Les enchères
+déjà créées restent sur Ganache pendant ces changements de compte.
+
 ---
 
 ### Commandes npm utiles

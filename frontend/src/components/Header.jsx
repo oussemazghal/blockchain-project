@@ -60,7 +60,7 @@ export default function Header({
           <button
             className={`btn wallet-button ${wallet.account ? "wallet-connected" : "btn-primary"}`}
             onClick={onConnect}
-            disabled={wallet.connecting}
+            disabled={wallet.connecting || wallet.disconnecting}
             aria-label={
               wallet.account
                 ? "Ouvrir mon portefeuille"
@@ -84,7 +84,11 @@ export default function Header({
               </>
             ) : (
               <span>
-                {wallet.connecting ? "Connexion…" : "Connecter le portefeuille"}
+                {wallet.disconnecting
+                  ? "Déconnexion…"
+                  : wallet.connecting
+                    ? "Connexion…"
+                    : "Connecter le portefeuille"}
               </span>
             )}
           </button>

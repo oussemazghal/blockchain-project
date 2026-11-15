@@ -10,6 +10,9 @@ export default function ExperienceDialog({
   onConnect,
   onSwitch,
   onCreate,
+  onSwitchAccount,
+  onSignOut,
+  busy = false,
 }) {
   const dialog = useRef(null);
   const titleId = useId();
@@ -149,17 +152,45 @@ export default function ExperienceDialog({
               <button
                 className="btn btn-primary btn-block"
                 onClick={() => runAction(onConnect)}
-                disabled={wallet.connecting || working}
+                disabled={wallet.connecting || wallet.disconnecting || working}
               >
-                {wallet.connecting || working
-                  ? "Connexion en cours…"
-                  : "Connecter MetaMask"}
+                {wallet.disconnecting
+                  ? "Déconnexion en cours…"
+                  : wallet.connecting || working
+                    ? "Connexion en cours…"
+                    : "Connecter MetaMask"}
                 <Icon name="arrow" size={18} />
               </button>
             ) : (
               <button className="btn btn-primary btn-block" onClick={onClose}>
                 Continuer à explorer <Icon name="arrow" size={18} />
               </button>
+            )}
+            {wallet.account && (
+              <div className="wallet-session-actions">
+                <button
+                  className="btn btn-outline btn-block"
+                  onClick={() => runAction(onSwitchAccount)}
+                  disabled={working || wallet.connecting || busy}
+                >
+                  <Icon name="switch" size={17} />
+                  {wallet.connecting
+                    ? "Choisissez dans MetaMask…"
+                    : "Changer de compte"}
+                </button>
+                <button
+                  className="btn btn-sign-out btn-block"
+                  onClick={() => runAction(onSignOut)}
+                  disabled={working || wallet.connecting || busy}
+                >
+                  <Icon name="signout" size={17} /> Se déconnecter
+                </button>
+                <p className="hint">
+                  {busy
+                    ? "Attendez la confirmation de la transaction avant de changer de compte."
+                    : "Choisissez le vendeur ou un enchérisseur dans MetaMask pour tester chaque rôle."}
+                </p>
+              </div>
             )}
             <p className="dialog-footnote">
               <Icon name="shield" size={14} /> Vos clés restent dans votre

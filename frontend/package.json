@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "test": "node --test src/lib/catalog.test.js",
+    "test": "node --test src/lib/*.test.js",
     "test:render": "node scripts/check-render.mjs",
     "preview": "vite preview"
   },

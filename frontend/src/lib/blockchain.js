@@ -45,8 +45,19 @@ export function getBrowserProvider() {
   return new BrowserProvider(window.ethereum);
 }
 
-export async function getWriteContract() {
-  const signer = await getBrowserProvider().getSigner();
+export async function getAccountSigner(account) {
+  if (!account) throw new Error("Connectez votre portefeuille pour continuer.");
+  const provider = getBrowserProvider();
+  const [selected] = await provider.send("eth_accounts", []);
+  if (!sameAddress(selected, account)) {
+    provider.destroy();
+    throw new Error("Le compte MetaMask a changé. Vérifiez le compte affiché, puis réessayez.");
+  }
+  return provider.getSigner(account);
+}
+
+export async function getWriteContract(account) {
+  const signer = await getAccountSigner(account);
   return new Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
 }
 

@@ -101,8 +101,56 @@ try {
     }),
     /Mon profil de vendeur/,
   );
+  const connectedWallet = {
+    ...wallet,
+    metaMaskInstalled: true,
+    account: auction.seller,
+    balance: 1000n * 10n ** 18n,
+  };
+  const connectedDialog = render(dialog, {
+    kind: "wallet",
+    wallet: connectedWallet,
+  });
+  assert.match(connectedDialog, /Changer de compte/);
+  assert.match(connectedDialog, /Se déconnecter/);
+  const pendingDialog = render(dialog, {
+    kind: "wallet",
+    wallet: connectedWallet,
+    busy: true,
+  });
+  const signOutButton = [
+    ...pendingDialog.matchAll(/<button\b([^>]*)>([\s\S]*?)<\/button>/g),
+  ].find((match) => match[2].includes("Se déconnecter"));
+  assert.ok(
+    signOutButton?.[1].includes('disabled=""'),
+    "Sign-out must wait for an active transaction",
+  );
+
+  // Only account/chain reads are allowed here; no transaction or signature is sent.
+  const bidder = "0x0000000000000000000000000000000000000002";
+  window.ethereum = {
+    request: async ({ method }) => {
+      if (method === "eth_accounts") return [bidder];
+      if (method === "eth_chainId") return "0x539";
+      throw new Error(`Unexpected wallet method: ${method}`);
+    },
+  };
+  const { getAccountSigner } = await server.ssrLoadModule(
+    "/src/lib/blockchain.js",
+  );
+  await assert.rejects(
+    getAccountSigner(auction.seller),
+    /compte MetaMask a changé/,
+  );
+  const signer = await getAccountSigner(bidder);
+  try {
+    assert.equal(await signer.getAddress(), bidder);
+  } finally {
+    signer.provider.destroy();
+  }
+  delete window.ethereum;
   console.log(
-    "11 render checks passed: routes, empty and populated catalogue, seller, closing, wallets and account.",
+    "16 checks passed: page rendering, wallet controls, pending transactions and selected-account signers.",
   );
 } finally {
   await server.close();

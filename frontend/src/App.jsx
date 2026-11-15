@@ -40,7 +40,11 @@ export default function App() {
   const dismissToast = useCallback(() => setToast(null), []);
 
   const canWrite =
-    Boolean(wallet.account) && !wallet.wrongNetwork && deployed === true;
+    Boolean(wallet.account) &&
+    !wallet.wrongNetwork &&
+    !wallet.connecting &&
+    !wallet.disconnecting &&
+    deployed === true;
 
   // Envoie une transaction via MetaMask et affiche le résultat
   const runTx = useCallback(
@@ -52,7 +56,7 @@ export default function App() {
       });
       try {
         await syncLocalChainTime(); // Ganache : met à jour l'horloge de la chaîne
-        const contract = await getWriteContract();
+        const contract = await getWriteContract(wallet.account);
         const tx = await send(contract);
         setToast({
           type: "info",
@@ -85,8 +89,24 @@ export default function App() {
   };
 
   const connect = async () => {
-    await wallet.connect();
-    if (wallet.metaMaskInstalled) setDialog(null);
+    if (await wallet.connect()) setDialog(null);
+  };
+  const switchAccount = async () => {
+    if (await wallet.switchAccount()) {
+      setDialog(null);
+      setToast({
+        type: "success",
+        text: "Compte mis à jour. Vous pouvez poursuivre l’enchère avec ce portefeuille.",
+      });
+    }
+  };
+  const signOut = async () => {
+    await wallet.disconnect();
+    setDialog(null);
+    setToast({
+      type: "success",
+      text: "Vous êtes déconnecté. Reconnectez votre portefeuille pour choisir un autre compte.",
+    });
   };
   const switchNetwork = async () => {
     try {
@@ -131,7 +151,7 @@ export default function App() {
 
         <div
           className="page-transition"
-          key={`${page}:${selectedId ?? "index"}`}
+          key={`${page}:${selectedId ?? "index"}:${wallet.account ?? "visitor"}`}
         >
           {selected ? (
             <AuctionDetail
@@ -214,6 +234,9 @@ export default function App() {
           onClose={() => setDialog(null)}
           onConnect={connect}
           onSwitch={wallet.switchNetwork}
+          onSwitchAccount={switchAccount}
+          onSignOut={signOut}
+          busy={busy}
           onCreate={() => {
             setDialog(null);
             go("create");

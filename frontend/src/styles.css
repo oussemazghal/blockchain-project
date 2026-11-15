@@ -1922,6 +1922,25 @@ main:focus {
   margin-bottom: 22px;
   font-size: 12px;
 }
+.wallet-session-actions {
+  display: grid;
+  gap: 10px;
+  margin-top: 15px;
+  padding-top: 20px;
+  border-top: 1px solid var(--line);
+}
+.wallet-session-actions .hint {
+  text-align: center;
+}
+.btn-sign-out {
+  background: transparent;
+  color: var(--err);
+  border-color: #ebd7ce;
+}
+.btn-sign-out:hover:not(:disabled) {
+  background: var(--err-soft);
+  border-color: #d5b2a4;
+}
 .wallet-summary > div > span {
   display: block;
   color: var(--muted);
