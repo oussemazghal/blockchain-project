@@ -1,11 +1,16 @@
-# enchères. — Les objets ont une histoire
+<p align="center">
+  <img src="docs/images/logo.svg" alt="enchères. logo" width="360" />
+</p>
 
-> **Application décentralisée (DApp) de gestion d'enchères sur Ethereum**  
-> *Découvrez des objets singuliers, proposez vos offres et vérifiez les annonces. Des enchères transparentes, décentralisées et sécurisées par smart contract, directement connectées à votre portefeuille MetaMask.*
+<p align="center">
+  <strong>Application décentralisée (DApp) de gestion d'enchères sur Ethereum</strong><br>
+  <em>Découvrez des objets singuliers, proposez vos offres et vérifiez les annonces. Des enchères transparentes, décentralisées et sécurisées par smart contract, directement connectées à votre portefeuille MetaMask.</em>
+</p>
 
-[🎬 Démo vidéo](#parcours-utilisateur) · [📄 Rapport de projet](#équipe) · [⚙️ Installation](#installation) · [👥 Équipe](#équipe)
-
-🌐 **Langue / Language :** Français
+<p align="center">
+  <img src="docs/images/catalogue.png" alt="Explorer le catalogue - enchères." width="49%" />
+  <img src="docs/images/detail_enchere.png" alt="Fiche d'enchère en direct et surenchère" width="49%" />
+</p>
 
 ---
 
