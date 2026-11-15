@@ -1,238 +1,286 @@
-# Enchères DApp
+# enchères. — Les objets ont une histoire
 
-Application décentralisée de gestion d’enchères sur Ethereum, développée avec **Solidity, React et Ethers.js**. Un vendeur publie un article avec un prix minimal et une durée fixe ; les participants déposent leurs offres via MetaMask et le smart contract applique les règles de l’enchère.
+> **Application décentralisée (DApp) de gestion d'enchères sur Ethereum**  
+> *Découvrez des objets singuliers, proposez vos offres et vérifiez les annonces. Des enchères transparentes, décentralisées et sécurisées par smart contract, directement connectées à votre portefeuille MetaMask.*
 
-Le projet fonctionne sur **Ganache**, avec des ETH de test. Il comprend la gestion des offres, la clôture, le retrait des fonds, la vérification des photos par empreinte SHA-256 et les annonces signées.
+[🎬 Démo vidéo](#parcours-utilisateur) · [📄 Rapport de projet](#équipe) · [⚙️ Installation](#installation) · [👥 Équipe](#équipe)
+
+🌐 **Langue / Language :** Français
+
+---
 
 ## Sommaire
 
-- [Fonctionnalités](#fonctionnalités)
-- [Architecture](#architecture)
-- [Technologies](#technologies)
-- [Installation](#installation)
-- [Configuration du portefeuille](#configuration-du-portefeuille)
-- [Parcours utilisateur](#parcours-utilisateur)
-- [Tests et commandes](#tests-et-commandes)
-- [Organisation du code](#organisation-du-code)
-- [Sécurité et limites](#sécurité-et-limites)
-- [Dépannage](#dépannage)
-- [Équipe](#équipe)
+- [1. À propos](#1-à-propos)
+- [2. Fonctionnalités et conformité CDC](#2-fonctionnalités-et-conformité-cdc)
+- [3. Architecture](#3-architecture)
+- [4. Technologies utilisées](#4-technologies-utilisées)
+- [5. Installation et démarrage](#5-installation-et-démarrage)
+- [6. Configuration de MetaMask](#6-configuration-de-metamask)
+- [7. Parcours utilisateur et navigation](#7-parcours-utilisateur-et-navigation)
+- [8. Tests et commandes](#8-tests-et-commandes)
+- [9. Organisation du code](#9-organisation-du-code)
+- [10. Sécurité et conception](#10-sécurité-et-conception)
+- [11. Dépannage](#11-dépannage)
+- [12. Équipe projet](#12-équipe-projet)
 
-## Fonctionnalités
+---
 
-| Fonctionnalité | Description |
-| --- | --- |
-| Création d’enchères | Nom, description, photo facultative, prix minimal et durée, avec aperçu de l’annonce. |
-| Catalogue | Recherche, filtres par état, compteurs, tri et présentation en grille ou en liste. |
-| Dépôt d’offres | Saisie en ETH, raccourcis de montant et confirmation dans MetaMask. |
-| Suivi | Meilleure offre, meilleur enchérisseur, compte à rebours et historique des offres. |
-| Clôture | Désignation du gagnant et paiement du vendeur après l’échéance. |
-| Retrait des fonds | Récupération à la demande des montants des offres dépassées. |
-| Portefeuille | Consultation du compte, du solde et du réseau ; changement de compte et déconnexion. |
-| Confiance | Vérification de l’intégrité des photos, profil public du vendeur et annonces signées. |
-| Partage | Lien direct vers une enchère et copie des adresses et empreintes. |
+## 1. À propos
 
-### Règles de gestion
+Sur les plateformes d'enchères traditionnelles (eBay, Drouot...), la confiance repose sur un intermédiaire centralisé qui encaisse les fonds, décide unilatéralement de la fin des enchères et prélève des commissions importantes.
 
-1. Le prix minimal et la durée sont strictement positifs.
-2. La première offre est au moins égale au prix minimal ; les suivantes dépassent strictement la meilleure offre.
-3. Le vendeur ne peut pas enchérir sur sa propre vente.
-4. Aucune offre n’est acceptée après l’échéance ou après la clôture.
-5. Une offre dépassée est créditée dans `pendingReturns` et peut être retirée par son auteur.
-6. La clôture est accessible après l’échéance et ne peut être exécutée qu’une seule fois par enchère.
+**enchères.** remplace cet intermédiaire par un **smart contract Solidity (`Auction.sol`) autonome et vérifiable sur Ethereum** :
+- **Un vendeur** publie un objet avec un prix minimal et une durée fixe déterminée à l'avance.
+- **Les enchérisseurs** soumettent leurs offres en ETH. Chaque nouvelle offre valide dépasse strictement la précédente et devient la meilleure offre provisoire.
+- **Remboursement garanti (*Pull over Push*) :** les fonds des enchérisseurs dépassés sont crédités instantanément dans le contrat et peuvent être retirés à tout moment en toute sécurité.
+- **Clôture mathématique :** dès l'échéance temporelle dépassée, n'importe quel participant peut clôturer l'enchère pour transférer les fonds au vendeur et désigner le gagnant.
+- **Confiance & intégrité :** chaque article peut être associé à une photo dont l'empreinte **SHA-256** est scellée on-chain, et les annonces peuvent être signées cryptographiquement par le vendeur (EIP-191).
+
+### Comparatif : Enchères traditionnelles vs *enchères.*
+
+| Critère | Enchères traditionnelles (centralisées) | **enchères.** (DApp Ethereum) |
+| :--- | :--- | :--- |
+| **Qui garde l'argent ?** | Un compte bancaire privé intermédiaire | Le smart contract autonome (`Auction.sol`) |
+| **Règles & temporalité** | Modifiables à tout moment par l'administrateur | Code Solidity immuable et temps scellé par la blockchain |
+| **Remboursements** | Dépendent de la politique du site et des délais bancaires | Immédiats et garantis par le code (*retrait à la demande*) |
+| **Attribution du lot** | Décision opaque de la plateforme | Déterminée mathématiquement par `highestBidder` à l'échéance |
+| **Intégrité de la photo** | Image modifiable sur le serveur du site | Empreinte SHA-256 infalsifiable ancrée on-chain |
+| **Authenticité du vendeur** | Profil fermé sur le site web | Clé publique Ethereum + annonce signée avec MetaMask |
+
+---
+
+## 2. Fonctionnalités et conformité CDC
+
+L'application couvre l'intégralité des fonctionnalités obligatoires du **Cahier des Charges (Sujet 5)** ainsi que des fonctionnalités avancées de confiance :
+
+| Réf. CDC | Fonctionnalité | Description dans le site **enchères.** | Implémentation technique |
+| :---: | :--- | :--- | :--- |
+| **F1** | **Création d'enchère** | Onglet **« Vendre un objet »** : nom, description, prix minimal, durée et prévisualisation. | `Auction.createAuction()` |
+| **F2** | **Dépôt d'offres** | Saisie en ETH, raccourcis de surenchère et validation MetaMask. | `Auction.bid()` *(payable)* |
+| **F3** | **Suivi en temps réel** | Meilleure offre, meilleur enchérisseur, décompte du temps et historique des offres. | `getAuction()` + écoute `BidPlaced` |
+| **F4** | **Clôture** | Déclenchement public après échéance : paiement du vendeur et sacre du gagnant. | `Auction.endAuction()` |
+| **F5** | **Remboursement** | Onglet **« Mon compte »** : retrait sécurisé à la demande des offres dépassées. | `Auction.withdraw()` |
+| **F6** | **Traçabilité** | Émission d'événements Solidity (`AuctionCreated`, `BidPlaced`, `AuctionEnded`...). | Événements Solidity |
+| **F7** | **Interface Web3** | Interface React avec intégration Ethers.js v6 et gestion des portefeuilles MetaMask. | React 18 + Ethers.js 6 |
+| **F8** *(Bonus)* | **Photo infalsifiable** | Détection immédiate si la photo affichée a été modifiée par rapport au hash d'origine. | Hash SHA-256 on-chain (`imageHash`) |
+| **F9** *(Bonus)* | **Annonces signées** | Signature d'annonce par le vendeur et vérification d'authenticité dans **« Vérifier une annonce »**. | Signatures EIP-191 via MetaMask |
+
+### Règles de gestion strictes
+1. Le prix minimal et la durée sont strictement supérieurs à zéro.
+2. La première offre doit être $\ge$ au prix minimal ; les suivantes doivent strictement dépasser la meilleure offre (`msg.value > highestBid`).
+3. Le vendeur ne peut jamais enchérir sur son propre article.
+4. Aucune offre n'est acceptée après l'échéance ou après la clôture.
+5. Une offre dépassée est immédiatement créditée dans `pendingReturns[address]` et reste retirable par son auteur.
+6. La clôture est irréversible et ne peut être exécutée qu'une seule fois par enchère.
 7. Une enchère sans offre se termine sans gagnant ni transfert de fonds.
-8. Si le paiement direct au vendeur échoue, le montant lui est crédité pour un retrait ultérieur.
+8. Si le paiement direct au vendeur échoue, le montant lui est conservé dans le contrat pour un retrait ultérieur (anti-blocage).
 
-## Architecture
+---
 
-La logique métier et les soldes remboursables sont gérés par `Auction.sol`. L’interface lit l’état du contrat via RPC et utilise MetaMask pour faire signer les transactions. Les événements permettent d’actualiser les données et de reconstituer l’historique des offres.
+## 3. Architecture
+
+L'application fonctionne selon une architecture 100% décentralisée sans backend centralisé :
 
 ```mermaid
 flowchart TD
-    UI[Interface React] -->|Lectures via Ethers.js| RPC[Ganache · RPC]
-    UI -->|Demandes de signature| Wallet[MetaMask]
+    UI[Interface React · enchères.] -->|Lectures directes via Ethers.js| RPC[Ganache · Port 7545]
+    UI -->|Demandes de signature| Wallet[Portefeuille MetaMask]
     Wallet -->|Transactions signées| RPC
-    RPC --> Contract[Contrat Auction.sol]
-    Contract -->|État et événements| UI
+    RPC --> Contract[Smart Contract Auction.sol]
+    Contract -->|État & Événements en direct| UI
 ```
 
-Les signatures d’annonces sont distinctes des transactions : signer un message ne modifie pas l’état de la blockchain et ne consomme pas de gas.
+---
 
-## Technologies
+## 4. Technologies utilisées
 
-| Composant | Technologie |
-| --- | --- |
-| Smart contract | Solidity `^0.8.20` |
-| Protection contre la réentrance | OpenZeppelin Contracts |
-| Compilation, migrations et tests | Truffle 5, Mocha et Chai |
-| Blockchain locale | Ganache 7 |
-| Interface | React 18, Vite et CSS |
-| Intégration Ethereum | Ethers.js 6 |
-| Portefeuille | MetaMask |
-| Intégrité des images | SHA-256 |
-| Signature des annonces | EIP-191 |
+| Composant | Technologie | Rôle |
+| :--- | :--- | :--- |
+| **Smart contract** | Solidity `^0.8.20` | Logique métier décentralisée et gestion des fonds |
+| **Sécurité** | OpenZeppelin (`ReentrancyGuard`) | Protection contre les attaques par réentrance |
+| **Développement Web3** | Truffle Suite `v5.x` | Compilation, migrations et suite de tests Mocha/Chai |
+| **Blockchain locale** | Ganache 7 (`port 7545`, `chain ID 1337`) | Environnement Ethereum de développement déterministe |
+| **Interface Web** | React 18, Vite 5, CSS moderne | Application Web réactive avec polices Manrope et animations accessibles |
+| **Intégration Web3** | Ethers.js `v6` | Interaction avec la blockchain, RPC et écoute d'événements |
+| **Portefeuille** | MetaMask | Signature des transactions et messages EIP-191 |
+| **Intégrité média** | SHA-256 client & on-chain | Preuve d'authenticité de la photo de l'article |
 
-## Installation
+---
+
+## 5. Installation et démarrage
 
 ### Prérequis
+- [Git](https://git-scm.com/)
+- [Node.js](https://nodejs.org/) (testé sous Node 22) et `npm`
+- Extension [MetaMask](https://metamask.io/) dans votre navigateur
 
-- Git.
-- Node.js et npm ; l’environnement du projet est indiqué comme testé sous Node.js 22.
-- MetaMask pour les opérations nécessitant une signature.
-
-### Cloner et installer
-
+### 1. Cloner et installer
 ```bash
 git clone https://github.com/oussemazghal/blockchain-project.git
 cd blockchain-project
+
+# Installe les dépendances du contrat et de l'interface React
 npm run setup
 ```
 
-### Démarrer l’environnement local
+### 2. Démarrer l'environnement local (3 terminaux)
 
-Exécuter les commandes suivantes depuis la racine du projet, dans **trois terminaux séparés**.
+Ouvrir **trois terminaux séparés** à la racine du projet :
 
-**Terminal 1 — Blockchain locale**
-
+#### 🔹 Terminal 1 — Blockchain locale Ganache
 ```bash
 npm run ganache
 ```
+*Démarre la blockchain locale sur `http://127.0.0.1:7545` (Chain ID : `1337`) avec 10 comptes préfinancés à 1000 ETH de test.*
 
-Conserver ce processus actif. L’interface et le déploiement utilisent son endpoint RPC.
-
-**Terminal 2 — Déploiement du contrat**
-
+#### 🔹 Terminal 2 — Déploiement du Smart Contract
 ```bash
 npm run migrate
 ```
+*Compile `Auction.sol`, le déploie sur Ganache et synchronise automatiquement l'ABI et l'adresse avec le frontend.*
 
-La migration déploie le contrat et synchronise l’ABI et les informations de déploiement avec le frontend.
-
-**Terminal 3 — Interface Web**
-
+#### 🔹 Terminal 3 — Interface Web **enchères.**
 ```bash
 npm run frontend
 ```
+*Lance le serveur de développement Vite. Ouvrez votre navigateur sur **`http://localhost:5173`**.*
 
-Ouvrir l’adresse affichée par Vite, généralement `http://localhost:5173`.
+---
 
-## Configuration du portefeuille
+## 6. Configuration de MetaMask
 
-Ajouter le réseau local dans MetaMask :
+1. **Ajouter le réseau Ganache Local :**
+   - **Nom du réseau :** `Ganache Local`
+   - **URL RPC :** `http://127.0.0.1:7545`
+   - **ID de chaîne :** `1337`
+   - **Symbole :** `ETH`
 
-| Paramètre | Valeur |
-| --- | --- |
-| Nom du réseau | `Ganache Local` |
-| URL RPC | `http://127.0.0.1:7545` |
-| Chain ID | `1337` |
-| Symbole | `ETH` |
+2. **Importer des comptes de test :**  
+   Depuis MetaMask, choisissez *Importer un compte* et collez l'une des clés privées affichées dans votre terminal Ganache (un vendeur et deux enchérisseurs).
 
-Importer trois comptes à partir des clés de test affichées par **l’instance Ganache en cours d’exécution** : un vendeur et deux enchérisseurs. Leurs adresses et soldes dépendent de la configuration locale.
+> ⚠️ *Les clés Ganache sont publiques et réservées exclusivement aux tests locaux. Ne les utilisez jamais sur un réseau réel.*
 
-> Les comptes et clés Ganache sont réservés au développement. Ne pas les utiliser pour détenir des fonds réels.
+---
 
-Cliquer sur l’adresse affichée dans l’application pour consulter le portefeuille, changer de compte ou se déconnecter. Attendre la confirmation d’une transaction avant de changer de participant.
+## 7. Parcours utilisateur et navigation
 
-## Parcours utilisateur
+L'application **enchères.** est organisée autour de 4 onglets principaux :
 
-1. **Créer une enchère.** Avec le compte vendeur, ouvrir « Vendre un objet », renseigner l’article, choisir une photo et définir les conditions. Vérifier l’aperçu, puis confirmer la transaction.
-2. **Déposer une offre.** Avec un autre compte, ouvrir l’article depuis « Explorer », saisir un montant valide et confirmer dans MetaMask.
-3. **Surenchérir.** Utiliser un second enchérisseur pour proposer un montant supérieur. L’historique et la meilleure offre sont actualisés.
-4. **Retirer les fonds.** Revenir au compte dépassé et utiliser « Mon compte » pour demander le retrait de son solde remboursable.
-5. **Clôturer.** Une fois le délai écoulé, déclencher la clôture et confirmer la transaction. La fiche affiche le gagnant et le résultat final.
-6. **Vérifier les informations.** Consulter le statut de la photo et utiliser « Vérifier une annonce » pour contrôler une annonce signée.
+1. **Explorer :**
+   - Catalogue complet des articles mis aux enchères.
+   - Recherche textuelle, filtres par statut (Toutes, En cours, Bientôt terminées, Clôturées), tri par prix ou date, et bascule d'affichage grille/liste.
+2. **Vendre un objet :**
+   - Formulaire de création : intitulé, description, prix minimal en ETH, durée de l'enchère.
+   - Ajout d'une photo avec calcul automatique de l'empreinte SHA-256 et prévisualisation avant mise en vente.
+3. **Fiche article & Enchères :**
+   - Décompte du temps en direct, indicateur du meilleur enchérisseur et historique complet des offres.
+   - Formulaire de surenchère avec raccourcis rapides (+0.1 ETH, +0.5 ETH, +1 ETH).
+   - Bouton de clôture apparaissant automatiquement après expiration de l'échéance.
+   - Génération d'une annonce signée cryptographiquement avec MetaMask.
+4. **Vérifier une annonce :**
+   - Outil de vérification public permettant de coller une annonce signée pour valider qu'elle émane bien du vendeur enregistré on-chain et n'a pas été altérée.
+   - Vérification de l'intégrité de la photo par comparaison de hash.
+5. **Mon compte :**
+   - Suivi de l'adresse connectée, du solde en ETH et du réseau actif.
+   - Solde bloqué retirable (*Pull payment*) et bouton « Retirer mes fonds ».
+   - Édition du profil vendeur public (nom et lien externe) enregistré dans la blockchain.
+   - Déconnexion et changement rapide de compte MetaMask.
 
-Exemple de scénario : article « Radio », prix minimal de **4 ETH**, durée de **2 minutes**, première offre de **5 ETH**, puis surenchère de **7 ETH**.
+---
 
-## Tests et commandes
+## 8. Tests et commandes
 
-La suite du contrat comprend **31 tests** portant notamment sur la création, les offres, les remboursements, la clôture et les protections de sécurité. Le résultat d’une exécution doit être vérifié dans la sortie du terminal ; un nombre de tests réussis ne constitue pas une mesure de couverture du code.
+Le projet intègre une suite complète de **31 tests Truffle** validant la conformité métier, les rejets d'erreurs et la résistance aux attaques de sécurité.
 
 ```bash
-# Tests du contrat sur une instance Ganache en mémoire
+# 31 tests Truffle du Smart Contract (en mémoire)
 npm test
 
-# Tests du catalogue : recherche, filtres et tri
+# Tests Truffle sur le serveur Ganache actif
+npm run test:ganache
+
+# Tests unitaires du catalogue frontend (recherche, filtres, tri)
 npm --prefix frontend test
 
-# Tests de rendu des pages et états de l’interface
+# Tests de rendu de l'interface utilisateur
 npm --prefix frontend run test:render
 ```
 
-| Commande | Utilité |
-| --- | --- |
-| `npm run setup` | Installer les dépendances du projet et du frontend. |
-| `npm run compile` | Compiler les smart contracts. |
-| `npm run ganache` | Démarrer la blockchain locale. |
-| `npm run migrate` | Déployer le contrat et synchroniser le frontend. |
-| `npm run frontend` | Démarrer le serveur Vite. |
-| `npm test` | Exécuter les tests Truffle en mémoire. |
-| `npm run test:ganache` | Exécuter les tests sur le Ganache actif. |
-| `npm --prefix frontend test` | Tester les fonctions du catalogue. |
-| `npm --prefix frontend run test:render` | Tester le rendu de l’interface. |
+### Commandes npm principales
 
-Privilégier les tests en mémoire pendant une session de démonstration : certains tests avancent l’horloge de la blockchain et peuvent modifier le contexte d’un réseau partagé.
+| Commande | Action |
+| :--- | :--- |
+| `npm run setup` | Installe toutes les dépendances du projet (racine et frontend). |
+| `npm run compile` | Compile les smart contracts Solidity avec Truffle. |
+| `npm run ganache` | Démarre la blockchain locale sur le port 7545. |
+| `npm run migrate` | Déploie `Auction.sol` et synchronise l'ABI frontend. |
+| `npm run frontend` | Démarre l'interface Web Vite sur `http://localhost:5173`. |
+| `npm test` | Exécute les 31 tests Truffle automatisés. |
+| `npm --prefix frontend run build` | Compile le frontend React pour la production. |
 
-## Organisation du code
+---
 
-| Chemin | Responsabilité |
-| --- | --- |
-| `contracts/Auction.sol` | Données, règles métier, transferts et événements. |
-| `contracts/test/` | Contrats auxiliaires pour les scénarios de sécurité. |
-| `migrations/1_deploy_auction.js` | Déploiement et export des informations du contrat. |
-| `test/auction.test.js` | Suite de tests du smart contract. |
-| `frontend/src/components/` | Pages et composants de l’interface. |
-| `frontend/src/hooks/` | Gestion du portefeuille, des enchères et des profils. |
-| `frontend/src/lib/blockchain.js` | Accès Ethereum, formats et gestion des erreurs. |
-| `frontend/src/lib/trust.js` | Empreintes et signatures d’annonces. |
-| `frontend/src/contract/Auction.json` | Artefact du contrat utilisé par le frontend. |
-| `truffle-config.js` | Compilateur et configuration réseau. |
-| `package.json` | Dépendances et scripts npm. |
+## 9. Organisation du code
 
-## Sécurité et limites
+```
+blockchain-project/
+├── contracts/
+│   ├── Auction.sol                 # Smart contract principal des enchères
+│   └── test/                       # Contrats de simulation pour les tests de sécurité
+│       ├── ReentrancyAttacker.sol  # Simulation d'attaque par réentrance
+│       └── RejectingSeller.sol     # Vendeur rejetant les transferts (test anti-DoS)
+├── migrations/
+│   └── 1_deploy_auction.js         # Déploiement Truffle et export automatique de l'ABI
+├── test/
+│   └── auction.test.js             # 31 tests Truffle couvrant l'ensemble des règles
+├── frontend/                       # Application Web React + Vite (enchères.)
+│   ├── src/
+│   │   ├── components/             # Composants (Header, AuctionList, AuctionDetail, CreateAuction...)
+│   │   ├── hooks/                  # useWallet (MetaMask), useAuctions, useProfile, useScrollReveal
+│   │   ├── lib/                    # blockchain.js (Ethers), trust.js (SHA-256), catalog.js
+│   │   ├── contract/Auction.json   # ABI et adresse déployée synchronisées
+│   │   ├── styles.css              # Styles principaux et identité visuelle
+│   │   └── motion.css              # Animations légères et accessibles
+│   └── public/                     # Polices Manrope locales et visuels éditoriaux
+├── truffle-config.js               # Configuration du compilateur et des réseaux
+└── README.md                       # Documentation officielle
+```
 
-### Retrait à la demande
+---
 
-Lors d’une surenchère, le contrat crédite `pendingReturns` au lieu de rembourser immédiatement l’ancien enchérisseur. Ce modèle évite qu’un destinataire refusant les ETH bloque les nouvelles offres. Le retrait remet le solde à zéro avant le transfert et utilise une protection contre la réentrance.
+## 10. Sécurité et conception
 
-### Intégrité des photos et signatures
+- **Modèle Pull over Push :** le smart contract ne renvoie jamais directement les fonds lors d'une surenchère dans `bid()`. Les fonds sont placés en attente dans `pendingReturns`. Ce mécanisme préserve l'application contre les attaques par déni de service (DoS).
+- **Verrou anti-réentrance :** les fonctions de retrait et clôture appliquent le principe *Checks-Effects-Interactions* et utilisent le modificateur `nonReentrant` d'OpenZeppelin.
+- **Synchronisation Ganache :** pour éviter qu'une simulation MetaMask n'utilise un horodatage figé sur Ganache, un bloc vide est miné automatiquement avant les transactions sensibles (`syncLocalChainTime`).
 
-Le contrat conserve une référence d’image et son empreinte SHA-256. La comparaison des empreintes permet de détecter une modification du fichier ; elle **ne prouve pas l’authenticité de l’objet photographié**. La disponibilité de l’image dépend également de son stockage et de son accessibilité.
+---
 
-Une annonce signée permet de vérifier qu’un message a été signé par l’adresse du vendeur et n’a pas été modifié. Elle ne certifie pas, à elle seule, l’identité civile ou l’honnêteté du vendeur.
+## 11. Dépannage
 
-### Clôture et environnement de test
+| Symptôme | Cause | Solution |
+| :--- | :--- | :--- |
+| **Ganache injoignable** | Le processus Ganache est éteint | Vérifier que `npm run ganache` tourne bien dans le premier terminal. |
+| **Contrat introuvable** | Ganache a été redémarré sans redéploiement | Lancer `npm run migrate` dans le Terminal 2 puis rafraîchir la page Web. |
+| **Erreur de nonce dans MetaMask** | MetaMask a conservé l'historique d'une ancienne instance Ganache | Dans MetaMask : *Paramètres* $\rightarrow$ *Avancé* $\rightarrow$ **« Effacer les données d'activité »**. |
+| **Solde à 0 ETH** | Mauvais réseau sélectionné | Vérifier que le réseau actif est bien `Ganache Local` (Chain ID `1337`). |
 
-- La clôture nécessite une transaction après l’échéance : le contrat ne s’exécute pas spontanément.
-- Le contrat gère les fonds, mais ne garantit pas la livraison d’un objet physique.
-- Les offres sont publiques ; le mécanisme ne masque pas les montants déposés.
-- Sur Ganache, la simulation d’une transaction peut utiliser un dernier bloc antérieur à l’échéance. La synchronisation locale peut demander un bloc vide avec `evm_mine` ; cette méthode est réservée au développement.
-- Ce projet pédagogique ne constitue pas un système audité pour une utilisation avec des fonds réels.
+---
 
-## Dépannage
+## 12. Équipe projet
 
-| Symptôme | Vérification et action |
-| --- | --- |
-| Ganache injoignable | Vérifier que `npm run ganache` reste actif et écoute sur le port `7545`. |
-| Contrat introuvable | Vérifier le réseau, puis relancer `npm run migrate` si la chaîne a été réinitialisée. Actualiser l’application. |
-| Solde nul | Vérifier le Chain ID `1337` et importer un compte de l’instance Ganache active. |
-| Erreur de nonce après réinitialisation | Vérifier que le compte et le réseau correspondent à la chaîne active ; réinitialiser si nécessaire l’historique d’activité du compte de test dans MetaMask. |
-| Offre refusée | Vérifier le prix minimal, la meilleure offre, l’échéance et l’adresse du vendeur. |
-| Clôture refusée malgré le compte à rebours | Vérifier l’horodatage du dernier bloc et la synchronisation de l’horloge locale. |
+Projet réalisé dans le cadre du module **Blockchain** — Sujet 5 : *Mise en vente d'un article avec enchère minimale et durée fixe*.
 
-## Équipe
+**Faculté des Sciences de Sfax (FSS) — Université de Sfax**  
+*Année universitaire : 2026–2027*  
+*Encadrant : M. Claude Duvallet*
 
-Projet réalisé dans le cadre du module **Blockchain**, sujet 5 : *Mise en vente d’un article avec enchère minimale et durée fixe*.
+| Membre | Profil GitHub | Responsabilités techniques |
+| :--- | :--- | :--- |
+| **Med Amine Salhi** | [@medaminesalhi](https://github.com/medaminesalhi) | Smart contract Solidity (`Auction.sol`), règles métier, sécurité, réentrance et événements. |
+| **Oussema Zghal** | [@oussemazghal](https://github.com/oussemazghal) | Tests unitaires Truffle (31 tests), scripts de migration et gestion du réseau Ganache. |
+| **Omar Bouattour** | [@OmarBouat](https://github.com/OmarBouat) | Interface React (**enchères.**), composants, navigation, formulaires et design visuel. |
+| **Nour Mellah** | [@nourmellah](https://github.com/nourmellah) | Intégration Web3, Ethers.js v6, connexion MetaMask, exécution des transactions et événements. |
 
-**Faculté des Sciences de Sfax — Université de Sfax**  
-**Année universitaire : 2026–2027**  
-**Encadrant : M. Claude Duvallet**
-
-| Membre | Responsabilité principale |
-| --- | --- |
-| [Med Amine Salhi](https://github.com/medaminesalhi) | Smart contract Solidity, règles métier, retraits, sécurité et événements. |
-| [Oussema Zghal](https://github.com/oussemazghal) | Tests Truffle, migrations et configuration Ganache. |
-| [Omar Bouattour](https://github.com/OmarBouat) | Interface React, formulaires, affichage et gestion des erreurs. |
-| [Nour Mellah](https://github.com/nourmellah) | Intégration Ethers.js, MetaMask, transactions et événements. |
-
-La conception, la relecture du code, les tests d’intégration, le rapport technique et la démonstration sont réalisés en collaboration.
+*La conception architecturale, la relecture croisée du code, les tests d'intégration, le rapport technique et la vidéo de démonstration ont été réalisés conjointement par l'ensemble de l'équipe.*
