@@ -8,8 +8,7 @@
 </p>
 
 <p align="center">
-  <img src="docs/images/catalogue.png" alt="Explorer le catalogue - enchères." width="49%" />
-  <img src="docs/images/detail_enchere.png" alt="Fiche d'enchère en direct et surenchère" width="49%" />
+  <img src="docs/images/detail_enchere.png" alt="Fiche d'enchère en direct et surenchère" width="85%" />
 </p>
 
 ---
