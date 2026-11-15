@@ -3,7 +3,6 @@
 > **Le code arbitre, les offres décident.**  
 > Une application décentralisée d'enchères à durée fixe et prix minimal sur Ethereum : les fonds sont sécurisés par smart contract, les remboursements des offres dépassées sont garantis sans intermédiaire, et l'authenticité des articles est protégée par empreinte cryptographique.
 
-[🎬 Démo vidéo](#2-démonstration) · [📄 Rapport de projet](#2-démonstration) · [⚙️ Installation](#6-installation) · [👥 Équipe](#8-membres-de-léquipe)
 
 🌐 **Langue / Language :** Français
 
