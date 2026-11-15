@@ -5,6 +5,8 @@ import ImageVerifier from "./ImageVerifier.jsx";
 import SellerInfo from "./SellerInfo.jsx";
 import AnnouncementSigner from "./AnnouncementSigner.jsx";
 import CopyButton from "./CopyButton.jsx";
+import Icon from "./Icon.jsx";
+import ItemImage from "./ItemImage.jsx";
 import {
   formatDate,
   formatEth,
@@ -16,41 +18,64 @@ import {
   ZERO_ADDRESS,
 } from "../lib/blockchain.js";
 
-export default function AuctionDetail({ auction: a, now, account, canWrite, busy, runTx, onBack }) {
+export default function AuctionDetail({
+  auction: a,
+  now,
+  account,
+  canWrite,
+  busy,
+  runTx,
+  onBack,
+  onConnect,
+}) {
   const [amount, setAmount] = useState("");
   const [formError, setFormError] = useState("");
   const [history, setHistory] = useState([]);
-
+  const [historyLoading, setHistoryLoading] = useState(true);
+  const [historyError, setHistoryError] = useState(false);
   const st = status(a, now);
   const hasBid = a.highestBidder !== ZERO_ADDRESS;
   const isSeller = sameAddress(a.seller, account);
   const isLeader = hasBid && sameAddress(a.highestBidder, account);
-
-  // Montant minimal accepté pour la prochaine offre
   const minNext = hasBid ? a.highestBid : a.minPrice;
+  const suggestedBid = hasBid ? a.highestBid + parseEther("0.01") : a.minPrice;
 
-  // Historique des offres reconstruit à partir des événements BidPlaced
   useEffect(() => {
     let cancelled = false;
+    setHistoryLoading(true);
+    setHistoryError(false);
     readContract
       .queryFilter(readContract.filters.BidPlaced(a.id), 0)
       .then(async (events) => {
         const rows = await Promise.all(
-          events.map(async (e) => {
-            const block = await e.getBlock();
-            return { bidder: e.args.bidder, amount: e.args.amount, time: block.timestamp, hash: e.transactionHash };
-          })
+          events.map(async (event) => {
+            const block = await event.getBlock();
+            return {
+              bidder: event.args.bidder,
+              amount: event.args.amount,
+              time: block.timestamp,
+              hash: event.transactionHash,
+            };
+          }),
         );
         if (!cancelled) setHistory(rows.reverse());
       })
-      .catch(() => !cancelled && setHistory([]));
+      .catch(() => {
+        if (!cancelled) {
+          setHistory([]);
+          setHistoryError(true);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setHistoryLoading(false);
+      });
     return () => {
       cancelled = true;
     };
   }, [a.id, a.highestBid]);
 
-  async function submitBid(e) {
-    e.preventDefault();
+  async function submitBid(event) {
+    event.preventDefault();
     setFormError("");
     let value;
     try {
@@ -58,183 +83,254 @@ export default function AuctionDetail({ auction: a, now, account, canWrite, busy
     } catch {
       return setFormError("Montant invalide.");
     }
-    // Contrôles côté interface (le smart contract refait toutes les vérifications)
-    if (!hasBid && value < a.minPrice) {
-      return setFormError(`L'offre doit être au moins égale au prix minimal (${formatEth(a.minPrice)}).`);
-    }
-    if (hasBid && value <= a.highestBid) {
-      return setFormError(`L'offre doit dépasser la meilleure offre (${formatEth(a.highestBid)}).`);
-    }
+    if (!hasBid && value < a.minPrice)
+      return setFormError(
+        `L’offre doit être au moins égale au prix minimal (${formatEth(a.minPrice)}).`,
+      );
+    if (hasBid && value <= a.highestBid)
+      return setFormError(
+        `L’offre doit dépasser la meilleure offre (${formatEth(a.highestBid)}).`,
+      );
     const receipt = await runTx(
-      "Envoi de l'offre.",
+      "Envoi de l’offre.",
       `Offre de ${formatEth(value)} enregistrée.`,
-      (c) => c.bid(a.id, { value })
+      (contract) => contract.bid(a.id, { value }),
     );
     if (receipt) setAmount("");
   }
 
   function closeAuction() {
-    runTx("Clôture de l'enchère.", "Enchère clôturée.", (c) => c.endAuction(a.id));
+    runTx("Clôture de l’enchère.", "Enchère clôturée.", (contract) =>
+      contract.endAuction(a.id),
+    );
   }
 
   return (
     <section>
       <button className="link-back" onClick={onBack}>
-        ← Retour aux enchères
+        <Icon name="arrow" size={15} /> Retour au catalogue
       </button>
-
       <div className="detail">
-        <div className="card detail-main">
+        <div>
+          <div className="card detail-gallery">
+            {a.imageURI ? (
+              <ImageVerifier imageURI={a.imageURI} imageHash={a.imageHash} />
+            ) : (
+              <ItemImage alt={a.itemName} />
+            )}
+          </div>
+          <div className="card">
+            <div className="detail-subhead">
+              <Icon name="user" />
+              <h2>Une rencontre avec le vendeur</h2>
+            </div>
+            <SellerInfo address={a.seller} isYou={isSeller} />
+          </div>
+          {isSeller && <AnnouncementSigner auction={a} canWrite={canWrite} />}
+          <div className="card">
+            <div className="detail-subhead">
+              <Icon name="gavel" />
+              <h2>L’histoire des offres</h2>
+              <span className="chip-count">{history.length}</span>
+            </div>
+            {historyLoading ? (
+              <p className="muted">Lecture des offres enregistrées…</p>
+            ) : historyError ? (
+              <p className="notice notice-warn">
+                L’historique n’a pas pu être chargé. Rechargez la page pour
+                réessayer.
+              </p>
+            ) : !history.length ? (
+              <p className="muted">
+                L’histoire attend sa première offre. À vous d’en écrire le
+                début.
+              </p>
+            ) : (
+              <div className="table-wrap">
+                <table className="table">
+                  <thead>
+                    <tr>
+                      <th>Date</th>
+                      <th>Enchérisseur</th>
+                      <th className="num">Offre</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {history.map((offer, index) => (
+                      <tr key={offer.hash + index}>
+                        <td>{formatDate(offer.time)}</td>
+                        <td title={offer.bidder}>
+                          {shortAddress(offer.bidder)}{" "}
+                          {sameAddress(offer.bidder, account) && (
+                            <span className="tag">vous</span>
+                          )}
+                        </td>
+                        <td className="num">
+                          <strong>{formatEth(offer.amount)}</strong>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+        <aside className="card detail-side">
           <div className="card-top">
-            <span className="auction-id">Enchère #{a.id}</span>
-            <span className="top-actions">
-              <CopyButton text={shareLink(a.id)} label="Copier le lien" />
-              <StatusBadge auction={a} now={now} />
-            </span>
+            <span className="auction-id">ENCHÈRE #{a.id}</span>
+            <StatusBadge auction={a} now={now} />
           </div>
           <h1>{a.itemName}</h1>
           {a.description && <p className="desc-lg">{a.description}</p>}
-          {a.imageURI && <ImageVerifier imageURI={a.imageURI} imageHash={a.imageHash} />}
-
-          <div className="stats">
-            <div className="stat">
-              <span className="stat-label">Prix minimal</span>
-              <span className="stat-value">{formatEth(a.minPrice)}</span>
-            </div>
-            <div className="stat">
-              <span className="stat-label">Meilleure offre</span>
-              <span className="stat-value">{hasBid ? formatEth(a.highestBid) : "Aucune"}</span>
-            </div>
-            <div className="stat">
-              <span className="stat-label">{a.ended ? "Fin" : "Temps restant"}</span>
-              <span className="stat-value">
-                {a.ended ? formatDate(a.endTime) : formatRemaining(a.endTime - now)}
+          <span className="stat-label">
+            {hasBid ? "Meilleure offre" : "Mise à prix"}
+          </span>
+          <strong className="bid-price">
+            {formatEth(hasBid ? a.highestBid : a.minPrice)}
+          </strong>
+          <div className="bid-conditions">
+            <div>
+              <span>
+                <Icon name="clock" size={13} />{" "}
+                {a.ended ? "Clôturée" : "Temps restant"}
               </span>
+              <strong>
+                {a.ended
+                  ? formatDate(a.endTime)
+                  : formatRemaining(a.endTime - now)}
+              </strong>
+            </div>
+            <div>
+              <span>Prix minimal</span>
+              <strong>{formatEth(a.minPrice)}</strong>
+            </div>
+            <div>
+              <span>{a.ended ? "Gagnant" : "Meilleur enchérisseur"}</span>
+              <strong title={a.highestBidder}>
+                {hasBid ? shortAddress(a.highestBidder) : "Aucune offre"}
+                {isLeader ? " · vous" : ""}
+              </strong>
             </div>
           </div>
-
-          <dl className="kv kv-wide">
-            <dt>Vendeur</dt>
-            <dd title={a.seller}>
-              {shortAddress(a.seller)} {isSeller && <span className="tag">vous</span>}
-            </dd>
-            <dt>{a.ended ? "Gagnant" : "Meilleur enchérisseur"}</dt>
-            <dd title={a.highestBidder}>
-              {hasBid ? shortAddress(a.highestBidder) : "—"} {isLeader && <span className="tag tag-ok">vous</span>}
-            </dd>
-            <dt>Date de fin</dt>
-            <dd>{formatDate(a.endTime)}</dd>
-          </dl>
-        </div>
-
-        <aside className="card detail-side">
-          {st === "en-cours" && (
-            <>
-              <h2>Enchérir</h2>
-              {isSeller ? (
-                <p className="muted">Vous êtes le vendeur : vous ne pouvez pas enchérir sur votre propre enchère.</p>
-              ) : (
-                <form onSubmit={submitBid} className="form">
-                  <label>
-                    Votre offre (ETH)
-                    <input
-                      type="text"
-                      inputMode="decimal"
-                      placeholder={hasBid ? `plus de ${formatEther(minNext)}` : `au moins ${formatEther(minNext)}`}
-                      value={amount}
-                      onChange={(e) => {
-                        setAmount(e.target.value);
-                        setFormError("");
-                      }}
-                      disabled={!canWrite || busy}
-                    />
-                  </label>
-                  {formError && <p className="form-error">{formError}</p>}
-                  <button className="btn btn-primary btn-block" disabled={!canWrite || busy || !amount}>
-                    {busy ? "Transaction en cours…" : "Placer l'offre"}
+          {st === "en-cours" &&
+            (isSeller ? (
+              <div className="notice notice-ok">
+                <Icon name="gavel" size={18} />
+                <span>
+                  C’est votre objet. Les enchérisseurs ont la main : vous ne
+                  pouvez pas enchérir sur votre propre annonce.
+                </span>
+              </div>
+            ) : (
+              <form onSubmit={submitBid} className="form">
+                <label>
+                  Votre offre (ETH)
+                  <input
+                    inputMode="decimal"
+                    placeholder={
+                      hasBid
+                        ? `Plus de ${formatEther(minNext)}`
+                        : `À partir de ${formatEther(minNext)}`
+                    }
+                    value={amount}
+                    onChange={(event) => {
+                      setAmount(event.target.value);
+                      setFormError("");
+                    }}
+                    disabled={!canWrite || busy}
+                  />
+                </label>
+                <div className="quick-bids">
+                  <button
+                    type="button"
+                    className="btn btn-small"
+                    disabled={!canWrite || busy}
+                    onClick={() => {
+                      setAmount(formatEther(suggestedBid));
+                      setFormError("");
+                    }}
+                  >
+                    {formatEth(suggestedBid)}
                   </button>
-                  {!canWrite && <p className="hint">Connectez MetaMask sur le réseau Ganache pour enchérir.</p>}
-                  <p className="hint">
-                    Si vous êtes dépassé, votre offre vous reste due : récupérez-la dans « Mon compte ».
+                  <button
+                    type="button"
+                    className="btn btn-small"
+                    disabled={!canWrite || busy}
+                    onClick={() => {
+                      setAmount(formatEther(suggestedBid + parseEther("0.1")));
+                      setFormError("");
+                    }}
+                  >
+                    + 0,1 ETH
+                  </button>
+                </div>
+                {formError && (
+                  <p className="form-error" role="alert">
+                    {formError}
                   </p>
-                </form>
-              )}
-            </>
-          )}
-
+                )}
+                <button
+                  className="btn btn-primary btn-block"
+                  disabled={!canWrite || busy || !amount}
+                >
+                  {busy ? "Transaction en cours…" : "Placer l’offre"}
+                  <Icon name="arrow" size={17} />
+                </button>
+                <p className="hint">
+                  Si une autre offre dépasse la vôtre, vos fonds restent
+                  disponibles dans « Mon compte ».
+                </p>
+              </form>
+            ))}
           {st === "a-cloturer" && (
             <>
-              <h2>Délai écoulé</h2>
+              <h2>Le temps des offres est terminé.</h2>
               <p className="muted">
-                Plus aucune offre n'est acceptée. N'importe quel participant peut clôturer l'enchère :
                 {hasBid
-                  ? ` le gagnant sera ${shortAddress(a.highestBidder)} et le vendeur recevra ${formatEth(a.highestBid)}.`
-                  : " aucune offre n'a été faite, l'enchère se terminera sans gagnant."}
+                  ? "La meilleure offre est connue. Clôturez l’enchère pour verser le montant au vendeur."
+                  : "Aucune offre n’a été proposée. Vous pouvez clôturer sans transfert de fonds."}
               </p>
-              <button className="btn btn-primary btn-block" onClick={closeAuction} disabled={!canWrite || busy}>
-                {busy ? "Transaction en cours…" : "Clôturer l'enchère"}
+              <button
+                className="btn btn-primary btn-block"
+                onClick={closeAuction}
+                disabled={!canWrite || busy}
+              >
+                {busy ? "Clôture en cours…" : "Clôturer l’enchère"}
+                <Icon name="check" size={17} />
               </button>
-              {!canWrite && <p className="hint">Connectez MetaMask sur le réseau Ganache pour clôturer.</p>}
             </>
           )}
-
           {st === "terminee" && (
-            <>
-              <h2>Enchère terminée</h2>
-              {hasBid ? (
-                <p className="result">
-                  Gagnant : <strong>{shortAddress(a.highestBidder)}</strong>
-                  <br />
-                  Montant versé au vendeur : <strong>{formatEth(a.highestBid)}</strong>
-                </p>
-              ) : (
-                <p className="muted">Aucune offre : pas de gagnant, aucun transfert.</p>
-              )}
-              {isLeader && <p className="notice notice-ok">Félicitations, vous avez remporté cette enchère !</p>}
-            </>
+            <div className="notice notice-ok">
+              <Icon name="check" size={20} />
+              <span>
+                {hasBid
+                  ? isLeader
+                    ? "Félicitations, cette pièce commence une nouvelle histoire avec vous !"
+                    : `Enchère remportée pour ${formatEth(a.highestBid)}. Le résultat est enregistré sur la blockchain.`
+                  : "L’enchère est terminée sans offre. Aucun fonds n’a été transféré."}
+              </span>
+            </div>
           )}
+          {!canWrite && st !== "terminee" && (
+            <button className="text-button wallet-prompt" onClick={onConnect}>
+              Connecter mon portefeuille <Icon name="arrow" size={15} />
+            </button>
+          )}
+          <p className="detail-safe">
+            <Icon name="shield" size={13} /> Chaque transaction se confirme dans
+            MetaMask.
+          </p>
+          <div className="detail-share">
+            <span className="hint">Une pièce à partager ?</span>
+            <CopyButton
+              text={`${window.location.origin}${window.location.pathname}#/enchere/${a.id}`}
+              label="Copier le lien"
+            />
+          </div>
         </aside>
-      </div>
-
-      <div className="card">
-        <h2>Vendeur</h2>
-        <SellerInfo address={a.seller} isYou={isSeller} />
-      </div>
-
-      {isSeller && <AnnouncementSigner auction={a} canWrite={canWrite} />}
-
-      <div className="card">
-        <h2>Historique des offres</h2>
-        {history.length === 0 ? (
-          <p className="muted">Aucune offre pour le moment.</p>
-        ) : (
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Date</th>
-                <th>Enchérisseur</th>
-                <th className="num">Montant</th>
-              </tr>
-            </thead>
-            <tbody>
-              {history.map((h, i) => (
-                <tr key={h.hash + i}>
-                  <td>{formatDate(h.time)}</td>
-                  <td title={h.bidder}>
-                    {shortAddress(h.bidder)} {sameAddress(h.bidder, account) && <span className="tag">vous</span>}
-                  </td>
-                  <td className="num">{formatEth(h.amount)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
       </div>
     </section>
   );
-}
-
-// Lien direct vers une enchère, à partager
-function shareLink(id) {
-  return `${window.location.origin}${window.location.pathname}#/enchere/${id}`;
 }

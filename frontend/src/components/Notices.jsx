@@ -1,32 +1,47 @@
 import { RPC_URL } from "../config.js";
+import Icon from "./Icon.jsx";
 
-// Bandeaux d'avertissement : MetaMask absent, mauvais réseau, contrat non déployé…
-export default function Notices({ wallet, deployed }) {
+export default function Notices({ wallet, deployed, onConnect, onSwitch }) {
   return (
-    <div className="notices">
+    <div className="notices" aria-live="polite">
       {deployed === null && (
         <div className="notice notice-error">
-          <strong>Ganache est injoignable</strong> à l'adresse {RPC_URL}. Lancez Ganache
-          (application ou <code>npm run ganache</code>) puis rechargez la page.
+          <Icon name="info" />
+          <span>
+            <strong>Le réseau local est indisponible.</strong> Lancez Ganache
+            sur <code>{RPC_URL}</code>, puis rechargez la page.
+          </span>
         </div>
       )}
       {deployed === false && (
         <div className="notice notice-error">
-          <strong>Contrat introuvable sur ce réseau.</strong> Exécutez{" "}
-          <code>npx truffle migrate --reset</code> puis rechargez la page.
+          <Icon name="info" />
+          <span>
+            <strong>Le contrat doit être déployé.</strong> Exécutez{" "}
+            <code>npm run migrate</code>, puis rechargez la page.
+          </span>
         </div>
       )}
-      {!wallet.metaMaskInstalled && (
-        <div className="notice notice-warn">
-          <strong>MetaMask n'est pas installé.</strong> Vous pouvez consulter les enchères, mais
-          il faut l'extension MetaMask pour créer une enchère ou enchérir.
+      {!wallet.account && (
+        <div className="visitor-notice">
+          <span>
+            <Icon name="globe" size={16} /> Un regard suffit pour découvrir. Un
+            portefeuille suffit pour participer.
+          </span>
+          <button onClick={onConnect}>
+            Connecter mon portefeuille <Icon name="arrow" size={15} />
+          </button>
         </div>
       )}
       {wallet.wrongNetwork && (
         <div className="notice notice-warn">
-          <strong>Mauvais réseau dans MetaMask.</strong> Sélectionnez le réseau Ganache local.{" "}
-          <button className="btn btn-small" onClick={wallet.switchNetwork}>
-            Basculer sur Ganache
+          <Icon name="info" />
+          <span>
+            <strong>Vous êtes sur un autre réseau.</strong> Choisissez Ganache
+            local pour participer aux enchères.
+          </span>
+          <button className="btn btn-small" onClick={onSwitch}>
+            Changer de réseau <Icon name="arrow" size={14} />
           </button>
         </div>
       )}

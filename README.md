@@ -191,6 +191,12 @@ npm test
 ```
 *Le résultat doit afficher `31 passing` sans aucun avertissement.*
 
+Vérifiez aussi le catalogue et le rendu des pages de l'interface :
+```bash
+npm --prefix frontend test              # recherche, filtres et tri du catalogue
+npm --prefix frontend run test:render   # rendu des pages et états, sans navigateur
+```
+
 ---
 
 ### 3. Lancer l'environnement de démonstration
@@ -214,6 +220,9 @@ npm run migrate
 npm run frontend
 ```
 *L'application s'ouvre automatiquement sur `http://localhost:5173`.*
+
+L'onglet **Vendre un objet** permet de créer une enchère. **Mon compte** regroupe
+le profil du vendeur, le suivi des offres et le retrait des fonds.
 
 ---
 
@@ -246,6 +255,8 @@ npm run frontend
 | `npm run setup` | Installe les packages racine et ceux du sous-dossier `frontend/` |
 | `npm test` | Exécute les 31 tests Truffle sur une instance Ganache en mémoire |
 | `npm run test:ganache` | Exécute les tests sur le serveur Ganache actif (`port 7545`) |
+| `npm --prefix frontend test` | Vérifie la recherche, les filtres et le tri du catalogue |
+| `npm --prefix frontend run test:render` | Vérifie le rendu des pages et des états de l'interface sans navigateur |
 | `npm run compile` | Recompile les smart contracts Solidity |
 | `npm run migrate` | Déploie les contrats sur Ganache et met à jour l'ABI frontend |
 | `npm run ganache` | Démarre la blockchain locale en ligne de commande |

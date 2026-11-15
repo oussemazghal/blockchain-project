@@ -11,7 +11,10 @@ export default function Toast({ toast, onClose }) {
   if (!toast) return null;
   return (
     <div className={`toast toast-${toast.type}`} role="status">
-      <span>{toast.text}</span>
+      <span className="toast-message">{toast.text}</span>
+      {toast.type === "success" && (
+        <span className="toast-progress" aria-hidden="true" />
+      )}
       {toast.type !== "info" && (
         <button className="toast-close" onClick={onClose} aria-label="Fermer">
           ×

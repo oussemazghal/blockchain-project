@@ -1,0 +1,246 @@
+/* Finite entrances and small interaction cues. Content stays visible when
+   observation is unavailable or the visitor asks for reduced motion. */
+@media (prefers-reduced-motion: no-preference) {
+  :root {
+    --motion-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .page-transition {
+    animation: page-enter 280ms var(--motion-ease) both;
+  }
+
+  .hero-copy > * {
+    animation: reveal-up 650ms var(--motion-ease) both;
+  }
+  .hero-copy > :nth-child(1) {
+    animation-delay: 50ms;
+  }
+  .hero-copy > :nth-child(2) {
+    animation-delay: 120ms;
+  }
+  .hero-copy > :nth-child(3) {
+    animation-delay: 190ms;
+  }
+  .hero-copy > :nth-child(4) {
+    animation-delay: 260ms;
+  }
+  .hero-copy > :nth-child(5) {
+    animation-delay: 330ms;
+  }
+
+  .hero-art {
+    overflow: hidden;
+  }
+  .hero-art > img {
+    animation: image-settle 1100ms var(--motion-ease) both;
+  }
+  .photo-proof {
+    animation: reveal-up 650ms 380ms var(--motion-ease) both;
+  }
+  .hero-art-label,
+  .hero-art-index {
+    animation: page-enter 700ms 250ms ease-out both;
+  }
+
+  [data-reveal-state="pending"] {
+    opacity: 0;
+    translate: 0 18px;
+  }
+  [data-reveal-state="visible"] {
+    animation: reveal-up 550ms var(--motion-ease) both;
+    animation-delay: var(--reveal-delay, 0ms);
+  }
+  .catalogue-results {
+    animation: page-enter 220ms ease-out both;
+  }
+  .chip.active .chip-count {
+    animation: count-pop 250ms var(--motion-ease) both;
+  }
+
+  .tab::after {
+    content: "";
+    position: absolute;
+    bottom: 22px;
+    left: 0;
+    right: 0;
+    height: 2px;
+    border-radius: 2px;
+    background: #6d8d59;
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform 230ms var(--motion-ease);
+  }
+  .tab.active::after {
+    transform: scaleX(1);
+  }
+  .brand-mark,
+  .media-open,
+  .text-button > .icon,
+  .btn > .icon {
+    transition: transform 250ms var(--motion-ease);
+  }
+  .chip,
+  .icon-button {
+    transition:
+      background-color 180ms ease,
+      color 180ms ease;
+  }
+  .search-field {
+    transition:
+      border-color 200ms ease,
+      box-shadow 200ms ease;
+  }
+  .btn:active:not(:disabled) {
+    transform: translateY(0) scale(0.98);
+  }
+
+  .experience-dialog[open] {
+    animation: dialog-enter 300ms var(--motion-ease) both;
+  }
+  .experience-dialog[open]::backdrop {
+    animation: backdrop-enter 250ms ease-out both;
+  }
+  .experience-dialog .feature-icon {
+    animation: count-pop 420ms 70ms var(--motion-ease) both;
+  }
+  .form-error,
+  .verify-result {
+    animation: page-enter 230ms ease-out both;
+  }
+  .toast {
+    overflow: hidden;
+    animation: toast-enter 350ms var(--motion-ease) both;
+  }
+  .toast-progress {
+    position: absolute;
+    inset: auto 0 0;
+    height: 3px;
+    background: #ffffff70;
+    transform-origin: left;
+    animation: toast-countdown 5s linear both;
+  }
+  .toast-info::before {
+    content: "";
+    flex: 0 0 auto;
+    width: 12px;
+    height: 12px;
+    margin-top: 5px;
+    border: 2px solid #ffffff40;
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: pending-spin 850ms linear infinite;
+  }
+
+  @keyframes reveal-up {
+    from {
+      opacity: 0;
+      translate: 0 18px;
+    }
+    to {
+      opacity: 1;
+      translate: 0 0;
+    }
+  }
+  @keyframes page-enter {
+    from {
+      opacity: 0;
+      translate: 0 7px;
+    }
+    to {
+      opacity: 1;
+      translate: 0 0;
+    }
+  }
+  @keyframes image-settle {
+    from {
+      opacity: 0;
+      transform: scale(1.045);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+  @keyframes count-pop {
+    from {
+      opacity: 0.4;
+      transform: scale(0.88);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+  @keyframes dialog-enter {
+    from {
+      opacity: 0;
+      transform: translateY(14px) scale(0.97);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+  @keyframes backdrop-enter {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+  @keyframes toast-enter {
+    from {
+      opacity: 0;
+      transform: translateX(22px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+  @keyframes toast-countdown {
+    from {
+      transform: scaleX(1);
+    }
+    to {
+      transform: scaleX(0);
+    }
+  }
+  @keyframes pending-spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) and (hover: hover) and (pointer: fine) {
+  .brand:hover .brand-mark {
+    transform: rotate(-5deg);
+  }
+  .tab:hover::after {
+    transform: scaleX(1);
+  }
+  .text-button:hover > .icon:last-child,
+  .btn:not(.wallet-button):hover:not(:disabled) > .icon:last-child {
+    transform: translateX(3px);
+  }
+  .auction-card:hover .media-open {
+    transform: translate(2px, -2px);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) and (max-width: 850px) {
+  .tab::after {
+    bottom: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* Keep existing hover positions still as well as disabling new entrances. */
+  .btn:hover:not(:disabled),
+  .auction-card:hover,
+  .auction-card:hover .item-visual img {
+    transform: none;
+  }
+}

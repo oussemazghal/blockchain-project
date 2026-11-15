@@ -1,5 +1,6 @@
 import { BrowserProvider, Contract, JsonRpcProvider, formatEther } from "ethers";
 import { CHAIN_ID, CONTRACT_ABI, CONTRACT_ADDRESS, RPC_URL } from "../config.js";
+export { auctionStatus as status } from "./catalog.js";
 
 // ---------- lecture (sans portefeuille) ----------
 // Les lectures passent directement par Ganache : un visiteur sans MetaMask
@@ -112,12 +113,6 @@ export function formatEth(wei, digits = 4) {
 
 export function nowSeconds() {
   return Math.floor(Date.now() / 1000);
-}
-
-export function status(auction, now = nowSeconds()) {
-  if (auction.ended) return "terminee";
-  if (now >= auction.endTime) return "a-cloturer";
-  return "en-cours";
 }
 
 export function formatRemaining(seconds) {
