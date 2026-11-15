@@ -8,7 +8,7 @@
 </p>
 
 <p align="center">
-  <img src="docs/images/detail_enchere.png" alt="Fiche d'enchère en direct et surenchère" width="85%" />
+  <img src="docs/images/apercu_site.jpg" alt="Interface de l'application décentralisée enchères." width="100%" />
 </p>
 
 ---
